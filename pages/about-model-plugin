@@ -1,0 +1,98 @@
+{
+  "title": "About Model Plugin",
+  "story": [
+    {
+      "type": "markdown",
+      "id": "365dcd7578ddebb4",
+      "text": "The Model Plugin shows a summary of a spreadsheet financial model on a wiki page and keeps it honest. The figures are frozen into the item's own text as a table, so the page reads, forks and searches without the spreadsheet. A badge compares the frozen copy with the workbook and says whether it is up to date."
+    },
+    {
+      "type": "model",
+      "id": "ffb1b0d29e725492",
+      "text": "MODEL http://substrate.localhost/assets/the-founding-pack/ITT_Illustrative_Financial_Model.xlsx\nSHEET Summary\nRANGE C9:E17\nCOLUMNS Measure, Unit, Base\nREVISION sha256:47d87acea7982a006674cf4113c98358223102f169648bff8a452f79b21ffe77 2026-09-25T16:39Z\nCAPTION Managed service feasibility, ITT base case\nLAYOUT table\n\n| Measure | Unit | Base |\n|---|---|---|\n| Year one customer billings | GBP | 110,000 |\n| Year one managed provider bill | GBP | 66,000 |\n| Year one contribution before community budget | GBP | 12,000 |\n| Year one community spending | GBP | 12,000 |\n| Year one contribution before tax | GBP | \u2013 |\n| Separate service opening cash assumed | GBP | 60,000 |\n| Minimum service cash incl opening balance | GBP | 33,804 |\n| Five year service contribution before tax | GBP | 16,919 |\n| Final service cash before tax | GBP | 33,804 |"
+    },
+    {
+      "type": "markdown",
+      "id": "679b261ae1edf28b",
+      "text": "# How it reads\nThe item's text begins with a few directives. The rest is Table Plugin text, which the item draws through the Table Plugin, so CAPTION, LAYOUT, SORT, KEY and FOLD work as they do there."
+    },
+    {
+      "type": "table",
+      "id": "87c11abc82e55a6d",
+      "text": "CAPTION Model directives\nLAYOUT table\n\n| Directive | Meaning |\n|---|---|\n| MODEL url | The workbook: a site-relative /assets/\u2026 path or an absolute URL |\n| SHEET name | The sheet, used with RANGE |\n| RANGE C9:E17 | The cells to show, or Sheet!C9:E17 |\n| NAME name | A named range in the workbook, in place of SHEET and RANGE |\n| COLUMNS a, b, c | Headings; without them the range's first row heads the table |\n| REVISION sha256:\u2026 date | Which version of the workbook the table was frozen from. Freeze writes it |"
+    },
+    {
+      "type": "markdown",
+      "id": "9da2445887f96566",
+      "text": "# The badge\n**Up to date** (green): the workbook's bytes match the frozen revision. **Update available** (orange): the workbook has changed; click to thaw and see the live figures, with changed cells in bold and a list of every change. **Source missing** (red): the workbook cannot be read. While thawed, the site owner can **Freeze these figures**, which writes the new table and revision into the item and checks that the server saved it."
+    },
+    {
+      "type": "markdown",
+      "id": "ecc93bc8bafcd662",
+      "text": "# What it reads\nIt reads the values the spreadsheet cached when it was last saved, in the browser, with no server and no dependencies. It never evaluates formulas. Numbers are shown with each cell's own number format: thousands separators, decimals, percentages, currency, brackets for negatives and a dash for zero."
+    },
+    {
+      "type": "markdown",
+      "id": "291eb8bd326428ca",
+      "text": "# For agents\nThe package carries `wiki-model-freeze`, which prints a frozen item's text from a workbook on disk, using the same code as the browser:"
+    },
+    {
+      "type": "code",
+      "id": "c87ec8efd6516e61",
+      "text": "wiki-model-freeze MODEL.xlsx --sheets\nwiki-model-freeze MODEL.xlsx --source /assets/page/MODEL.xlsx --sheet Summary --range C9:E17 \\\n  --columns \"Measure, Unit, Base\" --caption \"Base case\" --layout table"
+    }
+  ],
+  "journal": [
+    {
+      "type": "create",
+      "item": {
+        "title": "About Model Plugin",
+        "story": [
+          {
+            "type": "markdown",
+            "id": "365dcd7578ddebb4",
+            "text": "The Model Plugin shows a summary of a spreadsheet financial model on a wiki page and keeps it honest. The figures are frozen into the item's own text as a table, so the page reads, forks and searches without the spreadsheet. A badge compares the frozen copy with the workbook and says whether it is up to date."
+          },
+          {
+            "type": "model",
+            "id": "ffb1b0d29e725492",
+            "text": "MODEL http://substrate.localhost/assets/the-founding-pack/ITT_Illustrative_Financial_Model.xlsx\nSHEET Summary\nRANGE C9:E17\nCOLUMNS Measure, Unit, Base\nREVISION sha256:47d87acea7982a006674cf4113c98358223102f169648bff8a452f79b21ffe77 2026-09-25T16:39Z\nCAPTION Managed service feasibility, ITT base case\nLAYOUT table\n\n| Measure | Unit | Base |\n|---|---|---|\n| Year one customer billings | GBP | 110,000 |\n| Year one managed provider bill | GBP | 66,000 |\n| Year one contribution before community budget | GBP | 12,000 |\n| Year one community spending | GBP | 12,000 |\n| Year one contribution before tax | GBP | \u2013 |\n| Separate service opening cash assumed | GBP | 60,000 |\n| Minimum service cash incl opening balance | GBP | 33,804 |\n| Five year service contribution before tax | GBP | 16,919 |\n| Final service cash before tax | GBP | 33,804 |"
+          },
+          {
+            "type": "markdown",
+            "id": "679b261ae1edf28b",
+            "text": "# How it reads\nThe item's text begins with a few directives. The rest is Table Plugin text, which the item draws through the Table Plugin, so CAPTION, LAYOUT, SORT, KEY and FOLD work as they do there."
+          },
+          {
+            "type": "table",
+            "id": "87c11abc82e55a6d",
+            "text": "CAPTION Model directives\nLAYOUT table\n\n| Directive | Meaning |\n|---|---|\n| MODEL url | The workbook: a site-relative /assets/\u2026 path or an absolute URL |\n| SHEET name | The sheet, used with RANGE |\n| RANGE C9:E17 | The cells to show, or Sheet!C9:E17 |\n| NAME name | A named range in the workbook, in place of SHEET and RANGE |\n| COLUMNS a, b, c | Headings; without them the range's first row heads the table |\n| REVISION sha256:\u2026 date | Which version of the workbook the table was frozen from. Freeze writes it |"
+          },
+          {
+            "type": "markdown",
+            "id": "9da2445887f96566",
+            "text": "# The badge\n**Up to date** (green): the workbook's bytes match the frozen revision. **Update available** (orange): the workbook has changed; click to thaw and see the live figures, with changed cells in bold and a list of every change. **Source missing** (red): the workbook cannot be read. While thawed, the site owner can **Freeze these figures**, which writes the new table and revision into the item and checks that the server saved it."
+          },
+          {
+            "type": "markdown",
+            "id": "ecc93bc8bafcd662",
+            "text": "# What it reads\nIt reads the values the spreadsheet cached when it was last saved, in the browser, with no server and no dependencies. It never evaluates formulas. Numbers are shown with each cell's own number format: thousands separators, decimals, percentages, currency, brackets for negatives and a dash for zero."
+          },
+          {
+            "type": "markdown",
+            "id": "291eb8bd326428ca",
+            "text": "# For agents\nThe package carries `wiki-model-freeze`, which prints a frozen item's text from a workbook on disk, using the same code as the browser:"
+          },
+          {
+            "type": "code",
+            "id": "c87ec8efd6516e61",
+            "text": "wiki-model-freeze MODEL.xlsx --sheets\nwiki-model-freeze MODEL.xlsx --source /assets/page/MODEL.xlsx --sheet Summary --range C9:E17 \\\n  --columns \"Measure, Unit, Base\" --caption \"Base case\" --layout table"
+          }
+        ]
+      },
+      "date": 1790354389030,
+      "provenance": "Authored by an AI agent \u2014 Claude Code via the [[fedwiki-create-plugin]] skill, in dialogue with David Bovill, 2026-09-25. [https://claude.com/claude-code Claude Code]"
+    }
+  ],
+  "plugin": "model"
+}

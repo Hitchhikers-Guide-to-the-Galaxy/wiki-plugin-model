@@ -1,0 +1,28 @@
+{
+  "name": "wiki-plugin-model",
+  "version": "0.1.0",
+  "description": "Federated Wiki - Model Plugin — a frozen summary of a spreadsheet financial model, drawn through the Table Plugin, with a badge that says whether it is up to date and an owner-only Freeze.",
+  "type": "module",
+  "main": "client/model.js",
+  "files": ["client", "pages", "scripts", "src", "factory.json"],
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node --test test/*.test.js",
+    "prepublishOnly": "npm test && npm run build"
+  },
+  "bin": { "wiki-model-freeze": "scripts/freeze.js" },
+  "keywords": ["model", "spreadsheet", "xlsx", "financial model", "wiki", "federated wiki", "plugin"],
+  "author": "David Bovill",
+  "license": "MIT",
+  "devDependencies": { "esbuild": "^0.25.0" },
+  "fedwiki": {
+    "requires": {
+      "plugins": [
+        { "package": "wiki-plugin-table", "seat": "table", "range": ">=0.8.0", "level": "required", "why": "the model item draws its table through the Table Plugin" }
+      ]
+    }
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/Hitchhikers-Guide-to-the-Galaxy/wiki-plugin-model.git" },
+  "bugs": { "url": "https://github.com/Hitchhikers-Guide-to-the-Galaxy/wiki-plugin-model/issues" },
+  "homepage": "https://github.com/Hitchhikers-Guide-to-the-Galaxy/wiki-plugin-model#readme"
+}
