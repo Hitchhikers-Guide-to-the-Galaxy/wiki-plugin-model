@@ -76,3 +76,41 @@ test('revision is the sha256 of the bytes', async () => {
   const r = await revisionOf(bytes)
   assert.match(r, /^[0-9a-f]{64}$/)
 })
+
+import { sheetRef, gvizUrl, exportUrl, parseCsv, readSheet, PrivateSheet } from '../src/lib/gsheet.js'
+import { readLive, tableRevision, shape } from '../src/lib/model.js'
+
+test('Google Sheets links and gviz urls', () => {
+  const ref = sheetRef('https://docs.google.com/spreadsheets/d/1mR56_mnYFs6hJmcURc1pKU133R1v8ECm_2fAlAEV6tI/edit?gid=414549056#gid=414549056')
+  assert.deepEqual(ref, { id: '1mR56_mnYFs6hJmcURc1pKU133R1v8ECm_2fAlAEV6tI', gid: '414549056' })
+  assert.equal(sheetRef('/assets/x.xlsx'), null)
+  assert.match(exportUrl(ref, { range: 'A1:C11' }), /export\?format=csv&gid=414549056&range=A1%3AC11$/)
+  assert.match(gvizUrl(ref, { sheet: 'Outputs' }), /sheet=Outputs/)
+})
+
+test('CSV with quotes, commas and blank rows', () => {
+  assert.deepEqual(parseCsv('"a","b ""x""","1,000"\r\n"","",""\r\nc,d,e'), [['a', 'b "x"', '1,000'], ['', '', ''], ['c', 'd', 'e']])
+})
+
+const fakeFetch = (status, type, body) => async () => ({ status, ok: status < 400, headers: { get: () => type }, text: async () => body })
+
+test('readSheet: values, private sheets, gviz errors', async () => {
+  const ref = { id: 'x', gid: null }
+  const rows = await readSheet(ref, { range: 'A1:C2' }, fakeFetch(200, 'text/csv', '"M","U","V"\n"","",""\n"IRR","%","4.20%"\n'))
+  assert.deepEqual(rows, [['M', 'U', 'V'], ['IRR', '%', '4.20%']])
+  await assert.rejects(readSheet(ref, {}, fakeFetch(401, 'text/html', '<html>')), PrivateSheet)
+  await assert.rejects(readSheet(ref, {}, async () => { throw new TypeError('Failed to fetch') }), PrivateSheet)
+  await assert.rejects(readSheet(ref, {}, fakeFetch(200, 'text/csv', ")]}'\n{\"status\":\"error\",\"errors\":[{\"detailed_message\":\"Cannot load spreadsheet.\"}]}")), /Cannot load spreadsheet/)
+  await assert.rejects(readSheet(ref, { name: 'out' }, fakeFetch(200, 'text/csv', '')), /named ranges/)
+})
+
+test('the revision follows the displayed values, not the file', async () => {
+  const a = await tableRevision({ columns: ['M', 'V'], rows: [['IRR', '1.15%']] })
+  const b = await tableRevision({ columns: ['M', 'V'], rows: [['IRR', '4.20%']] })
+  assert.notEqual(a, b)
+  assert.equal(a, await tableRevision(shape([['M', 'V'], ['IRR', '1.15%']], {})))
+  const io = { fetchBytes: async () => bytes, inflateRaw: inflate }
+  const one = await readLive({ source: '/assets/x.xlsx', sheet: 'Summary', range: 'C9:E10', columns: ['M', 'U', 'V'] }, '', io)
+  assert.equal(one.kind, 'workbook')
+  assert.equal(one.revision, await tableRevision(one.table))
+})

@@ -11,8 +11,9 @@
 //
 // Model directives are peeled off; everything else is Table Plugin text.
 
-import { parseRange, readRange } from './xlsx.js'
+import { parseRange, readRange, openWorkbook } from './xlsx.js'
 import { formatValue } from './format.js'
+import { sheetRef, readSheet } from './gsheet.js'
 
 export const MODEL_DIRECTIVES = ['MODEL', 'SHEET', 'RANGE', 'NAME', 'COLUMNS', 'REVISION']
 
@@ -67,16 +68,48 @@ export const selection = (model, book) => {
   return { ...r, sheet }
 }
 
-/** Read the selected cells as a display table { columns, rows } of strings. */
-export const liveTable = async (model, book) => {
-  const sel = selection(model, book)
-  const cells = await readRange(book, sel)
-  let rows = cells.map(row => row.map(c => (c ? formatValue(c.value, c.format) : '')))
+/** Rows of display strings -> { columns, rows }: COLUMNS, else the first row heads it. */
+export const shape = (rows, model) => {
+  rows = rows.map(r => r.slice())
   let columns = model.columns && model.columns.length ? model.columns.slice() : null
   if (!columns) columns = (rows.shift() || []).map((c, n) => c || `Column ${n + 1}`)
   const width = columns.length
   rows = rows.map(r => (r.length >= width ? r.slice(0, width) : [...r, ...Array(width - r.length).fill('')]))
-  return { columns, rows, sheet: sel.sheet }
+  return { columns, rows }
+}
+
+/** Read the selected cells of an opened workbook as a display table. */
+export const liveTable = async (model, book) => {
+  const sel = selection(model, book)
+  const cells = await readRange(book, sel)
+  const rows = cells.map(row => row.map(c => (c ? formatValue(c.value, c.format) : '')))
+  return { ...shape(rows, model), sheet: sel.sheet }
+}
+
+const sha256 = async text => {
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** The revision of what the item shows: a sha256 of the displayed values. It
+ *  ignores the file itself, so a re-export, or an edit elsewhere in the
+ *  workbook, leaves it unchanged. */
+export const tableRevision = table => sha256(JSON.stringify([table.columns, table.rows]))
+
+/**
+ * Read the live table from whatever MODEL names -> { table, revision, kind }.
+ * io: { fetchBytes(url) -> Uint8Array, inflateRaw, fetcher }
+ */
+export const readLive = async (model, url, io) => {
+  const ref = sheetRef(model.source)
+  let table
+  if (ref) {
+    table = shape(await readSheet(ref, model, io.fetcher), model)
+  } else {
+    const book = await openWorkbook(await io.fetchBytes(url), io.inflateRaw)
+    table = await liveTable(model, book)
+  }
+  return { table, revision: await tableRevision(table), kind: ref ? 'sheet' : 'workbook' }
 }
 
 const cell = s => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ')

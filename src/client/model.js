@@ -3,8 +3,8 @@
 // workbook's current bytes; clicking it thaws (live figures, changes marked);
 // an owner can Freeze the live figures back into the item's own text.
 
-import { openWorkbook, revisionOf } from '../lib/xlsx.js'
-import { parseItem, serializeItem, liveTable, toGfm, fromGfm, changes } from '../lib/model.js'
+import { parseItem, serializeItem, readLive, toGfm, fromGfm, changes } from '../lib/model.js'
+import { sheetRef, PrivateSheet } from '../lib/gsheet.js'
 
 const escape = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -41,12 +41,13 @@ const sourceUrl = ($item, source) => {
   return site && site !== location.host ? `//${site}${source}` : source
 }
 
-const fetchWorkbook = async url => {
+const fetchBytes = async url => {
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`${res.status} fetching the workbook`)
-  const bytes = new Uint8Array(await res.arrayBuffer())
-  return { bytes, book: await openWorkbook(bytes, inflateRaw), revision: await revisionOf(bytes) }
+  return new Uint8Array(await res.arrayBuffer())
 }
+
+const io = { fetchBytes, inflateRaw, fetcher: (u, o) => fetch(u, o) }
 
 // ---- drawing through the Table Plugin ---------------------------------------
 
@@ -79,23 +80,22 @@ const drawTable = async ($item, item, $target, text, resource = null) => {
 const setBadge = ($item, cls, label, title = '') =>
   $item.find('.model-badge').attr('class', `model-badge ${cls}`).attr('title', title).text(label)
 
-const short = h => (h ? h.slice(0, 12) : '')
-
 const check = async ($item, item, state) => {
   const { model } = state.parsed
-  if (!model.source) return setBadge($item, 'missing', 'No MODEL', 'Say which workbook: MODEL /assets/<page>/<file>.xlsx')
+  if (!model.source) return setBadge($item, 'missing', 'No MODEL', 'Say which workbook or sheet: MODEL /assets/<page>/<file>.xlsx or a Google Sheets link')
   try {
-    state.live = await fetchWorkbook(sourceUrl($item, model.source))
+    state.live = await readLive(model, sourceUrl($item, model.source), io)
   } catch (e) {
     state.live = null
-    return setBadge($item, 'missing', 'Source missing', e.message)
+    if (e instanceof PrivateSheet) return setBadge($item, 'missing', 'Private sheet', e.message)
+    return setBadge($item, 'missing', sheetRef(model.source) ? 'Cannot read sheet' : 'Source missing', e.message)
   }
   const frozen = model.revision && model.revision.hash
   if (!frozen) return setBadge($item, 'stale', 'Not frozen', 'Click to see the live figures and freeze them')
-  if (state.live.revision.startsWith(frozen) || frozen.startsWith(state.live.revision)) {
-    return setBadge($item, 'ok', 'Up to date', `Frozen ${model.revision.at || ''} from revision ${short(frozen)}; the workbook has not changed`)
+  if (state.live.revision === frozen) {
+    return setBadge($item, 'ok', 'Up to date', `Frozen ${model.revision.at || ''}; the figures shown are the ${state.live.kind}'s current figures`)
   }
-  setBadge($item, 'stale', 'Update available', `Frozen from ${short(frozen)}; the workbook is now ${short(state.live.revision)}. Click to see what changed`)
+  setBadge($item, 'stale', 'Update available', `The ${state.live.kind}'s figures have changed since ${model.revision.at || 'the freeze'}. Click to see what changed`)
 }
 
 // ---- thaw and freeze ---------------------------------------------------------
@@ -106,19 +106,14 @@ const thaw = async ($item, item, state) => {
   setBadge($item, 'pending', 'Reading…')
   if (!state.live) await check($item, item, state)
   if (!state.live) return
-  const { model, head, body } = state.parsed
-  let live
-  try {
-    live = await liveTable(model, state.live.book)
-  } catch (e) {
-    return setBadge($item, 'missing', 'Cannot read', e.message)
-  }
+  const { head, body } = state.parsed
+  const live = state.live.table
   state.thawed = live
   const diff = changes(fromGfm(body), live)
   const changed = new Set(diff.map(d => `${d.label}\u0000${d.column}`))
   const marked = { columns: live.columns, rows: live.rows.map(r => r.map((v, n) => (n && changed.has(`${r[0]}\u0000${live.columns[n]}`) ? `**${v}**` : v))) }
   await drawTable($item, item, $item.find('.model-table'), head.join('\n'), toGfm(marked))
-  setBadge($item, 'live', 'Live', `Live from revision ${short(state.live.revision)} — click to return to the frozen figures`)
+  setBadge($item, 'live', 'Live', `Live from the ${state.live.kind} — click to return to the frozen figures`)
   const list = diff.length
     ? `<ul>${diff.map(d => `<li>${escape(d.label)}${d.column ? ` · ${escape(d.column)}` : ''}: ${escape(d.from || '—')} → <b>${escape(d.to || '—')}</b></li>`).join('')}</ul>`
     : '<p>No figures differ from the frozen table.</p>'
@@ -171,7 +166,7 @@ const emit = ($item, item) => {
     <div class="model-item">
       <div class="model-table"></div>
       <div class="model-foot"><span class="model-badge pending">Checking…</span>
-        ${src ? `<a class="model-source" href="${escape(src)}" target="_blank" title="download the workbook">${escape(src.split('/').pop())}</a>` : ''}</div>
+        ${src ? `<a class="model-source" href="${escape(src)}" target="_blank" title="open the source">${escape(sheetRef(src) ? 'Google Sheet' : src.split('/').pop())}</a>` : ''}</div>
       <div class="model-changes"></div>
     </div>`)
   if (!state.parsed.body && src) {
